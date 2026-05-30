@@ -1,0 +1,1531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Rubik's Cube — Interactive Solver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 3×3 solver library (used by Smart Solver) -->
+  <script src="https://unpkg.com/cubejs/lib/cube.js"></script>
+  <script src="https://unpkg.com/cubejs/lib/solve.js"></script>
+
+  <!-- Twisty puzzle 3D viewer for Gameplay & Practice + Pyraminx model -->
+  <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
+
+
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b0f1a;
+      --accent:#ff5e3a;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#071024);color:#e6eef8}
+
+    .container{max-width:1100px;margin:40px auto;padding:28px}
+
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#ffb86b,#ff5e3a);display:grid place-items:center;box-shadow:0 6px 20px rgba(0,0,0,0.6);
+      font-weight:700;color:#082032
+    }
+    .brand h1{font-        ize:18px;margin:0}
+    nav{display:flex;gap:16px;align-items:center}
+    nav a{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:8px}
+    nav a.primary{background:linear-gradient(90deg,var(--accent),#ff8b5b);color:#071024;font-weight:600}
+
+    main{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:34px}
+
+    .hero{padding:28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:18px;backdrop-filter: blur(6px);box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    .eyebrow{font-size:13px;color:var(--muted);letter-spacing:1px}
+    h2{font-size:34px;margin:12px 0 8px;line-height:1.05}
+    p.lead{color:var(--muted);margin:0 0 20px}
+
+    .cta{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .btn{padding:12px 16px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),#ff8b5b);color:#071024}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+    .features{display:flex;gap:14px;margin-top:18px;flex-wrap:wrap}
+    .feature{background:var(--glass);padding:12px;border-radius:12px;flex:1;font-size:14px;color:var(--muted);min-width:150px}
+
+    .card{background:linear-gradient(180deg,#081426 0%, #071122 100%);padding:22px;border-radius:16px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    .cube-stage{height:320px;display:grid;place-items:center}
+
+    /* hero decorative cube */
+    .cube-wrap{width:180px;height:180px;perspective:900px}
+    .cube{
+      width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:spin 10s linear infinite
+    }
+    .face{
+      position:absolute;inset:0;width:100%;height:100%;display:grid;place-items:center;font-weight:800;color:#071022;border-radius:8px
+    }
+    .face::after{content:'';position:absolute;inset:12px;border-radius:6px;opacity:0.98}
+    .f1{transform:rotateY(0deg) translateZ(90px);background:#f7d37b}
+    .f2{transform:rotateY(90deg) translateZ(90px);background:#ff5e3a}
+    .f3{transform:rotateY(180deg) translateZ(90px);background:#fff}
+    .f4{transform:rotateY(-90deg) translateZ(90px);background:#0099ff}
+    .f5{transform:rotateX(90deg) translateZ(90px);background:#2ecc71}
+    .f6{transform:rotateX(-90deg) translateZ(90px);background:#f542dd}
+
+    @keyframes spin{from{transform:rotateX(-15deg) rotateY(0deg)}to{transform:rotateX(-15deg) rotateY(360deg)}}
+
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:18px;color:var(--muted);font-size:14px}
+
+    section.grid{margin-top:28px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .card-small{background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+
+    footer{margin-top:36px;padding:18px 0;color:var(--muted);text-align:center}
+
+    /* tools section */
+    .app-sections{
+      margin-top:36px;
+      display:grid;
+      grid-template-columns:2fr 1fr;
+      gap:20px;
+    }
+    .app-main-col{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+    .app-card{
+      background:var(--card);
+      padding:16px 18px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.06);
+      box-shadow:0 6px 20px rgba(15,23,42,0.7);
+    }
+    .app-card h3{
+      margin-top:0;
+      margin-bottom:6px;
+      font-size:18px;
+    }
+    .badge{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      background:rgba(56,189,248,0.16);
+      color:#7dd3fc;
+      margin-left:6px;
+      font-weight:600;
+    }
+    label{
+      display:block;
+      margin-top:8px;
+      font-size:13px;
+      font-weight:600;
+    }
+    select, textarea{
+      width:100%;
+      padding:8px;
+      border-radius:8px;
+      border:1px solid rgba(148,163,184,0.5);
+      margin-top:4px;
+      font-size:13px;
+      background:#020617;
+      color:#e6eef8;
+    }
+    textarea{
+      resize:vertical;
+      min-height:70px;
+    }
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    .btn-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+      justify-content:center;
+    }
+    button{
+      border:none;
+      border-radius:10px;
+      padding:7px 12px;
+      font-size:13px;
+      cursor:pointer;
+      background:linear-gradient(90deg,var(--accent),#ff8b5b);
+      color:#071024;
+      font-weight:600;
+      transition:transform 0.05s ease, box-shadow 0.05s ease, opacity 0.15s ease;
+    }
+    button.secondary{
+      background:transparent;
+      border:1px solid rgba(148,163,184,0.6);
+      color:var(--muted);
+    }
+    button.danger{
+      background:#ef4444;
+      color:#fee2e2;
+    }
+    button[disabled]{
+      opacity:0.5;
+      cursor:not-allowed;
+      box-shadow:none;
+      transform:none;
+    }
+    button:hover:not([disabled]){
+      opacity:0.97;
+      box-shadow:0 1px 4px rgba(15,23,42,0.8);
+      transform:translateY(-1px);
+    }
+
+    .moves-box{
+      font-family:monospace;
+      background:#020617;
+      border-radius:8px;
+      padding:8px;
+      font-size:12px;
+      max-height:150px;
+      overflow-y:auto;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      margin-top:6px;
+      border:1px solid rgba(15,23,42,0.8);
+    }
+
+    pre{
+      font-family:monospace;
+      background:#020617;
+      border-radius:8px;
+      padding:8px;
+      border:1px solid rgba(148,163,184,0.6);
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      font-size:13px;
+      color:#e5e7eb;
+    }
+
+    .status-row{
+      margin-top:8px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .status-pill{
+      padding:3px 10px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:600;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .status-pill .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      display:inline-block;
+    }
+    .status-pill.solved{
+      background:rgba(34,197,94,0.15);
+      color:#bbf7d0;
+    }
+    .status-pill.solved .dot{
+      background:#22c55e;
+    }
+    .status-pill.unsolved{
+      background:rgba(239,68,68,0.15);
+      color:#fecaca;
+    }
+    .status-pill.unsolved .dot{
+      background:#ef4444;
+    }
+
+    .control-group-title{
+      margin-top:10px;
+      font-size:13px;
+      font-weight:600;
+      color:var(--muted);
+      text-align:center;
+    }
+    .control-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin-top:6px;
+      justify-content:center;
+    }
+    .control-row button{
+      padding:4px 9px;
+      font-size:11px;
+      border-radius:999px;
+    }
+
+    /* Combined controls panel for cube + wide controls */
+    #controlsPanel{
+      display:flex;
+      gap:16px;
+      justify-content:center;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      margin-top:6px;
+    }
+    #controlsCube, #controls4x4Wide{
+      min-width:180px;
+    }
+
+    /* Twisty-player animation for moves and scramble */
+    twisty-player.anim-move{
+      animation:cubeMove 0.25s ease-out;
+    }
+    twisty-player.anim-scramble{
+      animation:cubeScramble 0.45s ease-out;
+    }
+    @keyframes cubeMove{
+      0%{ transform:rotate3d(0,0,0,0deg); }
+      40%{ transform:rotate3d(0,1,0,12deg); }
+      100%{ transform:rotate3d(0,0,0,0deg); }
+    }
+    @keyframes cubeScramble{
+      0%{ transform:rotate3d(0,0,0,0deg); }
+      25%{ transform:rotate3d(1,1,0,18deg); }
+      50%{ transform:rotate3d(-1,1,0,18deg); }
+      100%{ transform:rotate3d(0,0,0,0deg); }
+    }
+
+    /* SMART SOLVER 3D CUBE */
+    .smart3d-layout{
+      display:flex;
+      gap:18px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .smart3d-left{
+      flex:0 0 auto;
+    }
+    .smart3d-right{
+      flex:1 1 220px;
+    }
+
+    .smart3d-cube-wrap{
+      width:220px;
+      height:220px;
+      margin:auto;
+      perspective:900px;
+      cursor:grab;
+    }
+    .smart3d-cube{
+      width:100%;
+      height:100%;
+      position:relative;
+      transform-style:preserve-3d;
+      transition:transform 0.08s linear;
+    }
+    .smart3d-face{
+      position:absolute;
+      width:100%;
+      height:100%;
+      display:grid;
+      grid-template-columns:repeat(var(--n,3),1fr);
+      grid-template-rows:repeat(var(--n,3),1fr);
+      padding:8px;
+      box-sizing:border-box;
+      gap:3px;
+      background:#020617;
+      border-radius:10px;
+      box-shadow:0 0 0 1px rgba(15,23,42,0.7);
+    }
+
+    .face-U{ transform:rotateX(90deg) translateZ(110px); }
+    .face-D{ transform:rotateX(-90deg) translateZ(110px); }
+    .face-F{ transform:rotateY(0deg) translateZ(110px); }
+    .face-B{ transform:rotateY(180deg) translateZ(110px); }
+    .face-R{ transform:rotateY(90deg) translateZ(110px); }
+    .face-L{ transform:rotateY(-90deg) translateZ(110px); }
+
+    .smart-sticker{
+      border-radius:4px;
+      background:#020617;
+      border:1px solid #1e293b;
+      cursor:pointer;
+    }
+    .smart-sticker.center{
+      cursor:default;
+      box-shadow:0 0 0 1px rgba(148,163,184,0.9);
+    }
+
+    .palette-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin-top:8px;
+      justify-content:center;
+    }
+    .palette-btn{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.6);
+      background:#020617;
+      color:#e5e7eb;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .palette-btn.active{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(248,250,252,0.3);
+    }
+    .swatch{
+      width:14px;
+      height:14px;
+      border-radius:4px;
+      border:1px solid rgba(15,23,42,0.8);
+    }
+
+    @media (max-width:980px){
+      main{grid-template-columns:1fr}
+      section.grid{grid-template-columns:repeat(2,1fr)}
+      .cube-stage{height:260px}
+      .app-sections{grid-template-columns:1fr}
+    }
+    @media (max-width:560px){
+      .container{padding:16px;margin:18px auto}
+      .brand h1{display:none}
+      nav{display:none}
+      h2{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <header>
+      <div class="brand">
+        <div class="logo">RC</div>
+        <div>
+          <h1>Rubik's Cube Studio</h1>
+          <div style="font-size:12px;color:var(--muted)">Solve • Learn • Play</div>
+        </div>
+      </div>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#tools">Tools</a>
+        <a class="primary" href="#tools">Get Started</a>
+      </nav>
+    </header>
+
+    <!-- HERO -->
+    <main>
+      <div class="hero">
+        <div class="eyebrow">AI-powered cube solver</div>
+        <h2>Scan. Solve. Master the Cube — fast.</h2>
+        <p class="lead">
+          Interactive Rubik's Cube app with visual solver, practice modes and purchase links —
+          designed as a smart learning platform for all cube lovers.
+        </p>
+
+        <div class="cta">
+          <button class="btn primary" onclick="document.getElementById('tools').scrollIntoView({behavior:'smooth'})">Start Solving</button>
+          <button class="btn ghost" onclick="document.getElementById('tools').scrollIntoView({behavior:'smooth'})">Practice Mode</button>
+        </div>
+
+        <div class="features" id="features">
+          <div class="feature">Smart solver with 3D color input for 3×3</div>
+          <div class="feature">Live 3D cube viewer with scrambles & moves</div>
+          <div class="feature">Multi-cube modes: 2×2, 3×3, 4×4, Pyraminx</div>
+        </div>
+      </div>
+
+      <!-- Right hero card with decorative cube -->
+      <aside class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;color:var(--muted)">Live demo</div>
+            <div style="font-weight:800;font-size:20px;margin-top:6px">3D Cube Preview</div>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">v1.0</div>
+        </div>
+
+        <div class="cube-stage">
+          <div class="cube-wrap">
+            <div class="cube" aria-hidden="true">
+              <div class="face f1">U</div>
+              <div class="face f2">R</div>
+              <div class="face f3">D</div>
+              <div class="face f4">L</div>
+              <div class="face f5">F</div>
+              <div class="face f6">B</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="meta">
+          <div>Avg solve time: <strong>--</strong></div>
+          <div style="text-align:right"><small style="color:var(--muted)">Camera-based scan in future scope</small></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- TOOLS SECTION -->
+    <section id="tools" class="app-sections">
+      <div class="app-main-col">
+        <!-- SMART SOLVER 3D -->
+        <div class="app-card">
+          <h3>Smart Solver <span class="badge">3D color input (3×3) + Pyraminx</span></h3>
+          <p class="small">
+            Smart Solver lets users solve their real cubes: for 3×3 using 3D color input, and for Pyraminx using
+            scramble-based solving. 2×2 and 4×4 are shown as visual models here and fully supported in Gameplay &amp; Practice.
+          </p>
+
+          <div class="smart3d-layout">
+            <!-- LEFT: cube / pyraminx model + palette -->
+            <div class="smart3d-left">
+              <!-- Cube model (2×2 / 3×3 / 4×4) -->
+              <div class="smart3d-cube-wrap" id="smartCubeWrap">
+                <div class="smart3d-cube" id="smartCube3D">
+                  <!-- faces & stickers via JS -->
+                </div>
+              </div>
+
+              <!-- Pyraminx model for Smart Solver -->
+              <div id="smartPyrContainer" style="display:none;margin-top:8px;">
+                <twisty-player id="smartPyrTwisty"
+                  puzzle="pyraminx"
+                  control-panel="none"
+                  background="none"
+                  style="width: 220px; height: 220px; border:1px solid #444; border-radius:12px; overflow:hidden;"
+                ></twisty-player>
+                <div class="small" style="text-align:center;margin-top:4px;">
+                  Pyraminx Smart Solver: enter the scramble you did on your real pyramid and get reverse moves to solve it.
+                </div>
+              </div>
+
+              <div class="small" id="smartCubeHint" style="text-align:center;margin-top:6px;">
+                Drag to rotate the cube in 3D. Click a color below, then click stickers to paint them.
+              </div>
+
+              <div class="palette-row" id="paletteRow">
+                <!-- palette buttons via JS -->
+              </div>
+            </div>
+
+            <!-- RIGHT: controls + solver output -->
+            <div class="smart3d-right">
+              <label for="smartCubeType">Cube Type</label>
+              <select id="smartCubeType">
+                <option value="3x3x3" selected>3×3 Cube (Smart Solver)</option>
+                <option value="2x2x2">2×2 Cube (visual model)</option>
+                <option value="4x4x4">4×4 Cube (visual model)</option>
+                <option value="pyraminx">Pyraminx (Smart Solver from scramble)</option>
+              </select>
+              <div class="small" id="smartModeInfo">
+                Smart Solver painting + solving is enabled for 3×3. Pyraminx Smart Solver uses scrambles.
+                2×2 and 4×4 are visual only here; use Gameplay &amp; Practice for their interaction.
+              </div>
+
+              <div class="btn-row" style="margin-top:12px;">
+                <button id="fillCentersBtn" class="secondary">Reset centers only (3×3)</button>
+                <button id="clearNetBtn" class="danger">Clear all (3×3)</button>
+                <button id="solveColorBtn">Solve (3×3)</button>
+              </div>
+
+              <!-- Pyraminx Smart Solver input -->
+              <div id="pyrSmartArea" class="small" style="display:none;margin-top:10px;">
+                <label for="pyrScrambleInput" style="margin-top:0;">Pyraminx Scramble (from solved position)</label>
+                <textarea id="pyrScrambleInput" placeholder="Example: U L' R U' r' U ..."></textarea>
+                <div class="small">
+                  1) Hold your Pyraminx solved, then apply these moves on your real cube to scramble it.<br/>
+                  2) Paste the same scramble here and click “Solve Pyraminx from Scramble”.<br/>
+                  3) Follow the reverse moves shown to solve your real Pyraminx.
+                </div>
+              </div>
+
+              <div id="smartInfo" class="small" style="margin-top:8px;">
+                For 3×3: each color (U,R,F,D,L,B) can be used at most 9 times total (1 center + 8 stickers).<br/>
+                Carefully match your real cube’s scrambled state, then press “Solve (3×3)”.
+              </div>
+
+              <h4 style="margin-top:12px;font-size:13px;">Smart Solver Status</h4>
+              <div id="smartSolverMessage" class="moves-box">
+                No solution yet. For 3×3, color all stickers; for Pyraminx, enter a scramble; then click Solve.
+              </div>
+
+              <h4 style="margin-top:10px;font-size:13px;">Step-by-step Moves</h4>
+              <div id="smartSolutionSteps" class="moves-box">
+                Steps will appear here after a successful solve.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GAMEPLAY & PRACTICE -->
+        <div class="app-card">
+          <h3>Gameplay & Practice Mode <span class="badge">2×2 • 3×3 • 4×4 • Pyraminx</span></h3>
+          <p class="small">
+            This module demonstrates an interactive 3D puzzle: rotate the cube, generate scrambles,
+            reset, use face-move buttons and get solver hints for each cube type.
+          </p>
+
+          <label for="modeSelect">Practice Cube Type</label>
+          <select id="modeSelect">
+            <option value="3x3x3" selected>3×3 Cube</option>
+            <option value="2x2x2">2×2 Cube</option>
+            <option value="4x4x4">4×4 Cube</option>
+            <option value="pyraminx">Pyraminx</option>
+          </select>
+
+          <div style="margin-top:14px;display:flex;flex-direction:column;align-items:center;">
+            <twisty-player id="twisty"
+              puzzle="3x3x3"
+              control-panel="none"
+              background="none"
+              experimental-setup="timing"
+              camera-latitude="25"
+              camera-longitude="-35"
+              style="width: 320px; height: 320px; border: 1px solid #444; border-radius:16px; overflow:hidden;"
+            >
+            </twisty-player>
+            <div class="small" id="orientationHelper" style="margin-top:6px;opacity:0.8;">
+              Cube orientation: hold the puzzle so U = top face, F = front face, R = right, L = left, D = bottom, B = back. All moves (U,R,F,L,D,B) are defined with respect to this.
+            </div>
+          </div>
+
+          <div class="status-row">
+            <span>Status:</span>
+            <span id="statusPill" class="status-pill solved">
+              <span class="dot"></span> Solved
+            </span>
+          </div>
+
+          <!-- TIMER DISPLAY -->
+          <div class="status-row" style="margin-top:4px;">
+            <span>Time:</span>
+            <span id="timerCurrent" class="small">00:00.0</span>
+            <span style="margin-left:12px;">Best:</span>
+            <span id="timerBest" class="small">--</span>
+          </div>
+
+          <div class="btn-row" style="margin-top:12px;">
+            <button id="scrambleBtn">Generate Random Scramble</button>
+            <button id="resetBtn" class="secondary">Reset Cube</button>
+            <button id="stopTimerBtn" class="secondary">Stop Timer (Solved)</button>
+            <button id="hintBtn" class="secondary">💡 Hint (all modes)</button>
+          </div>
+
+          <h4 style="margin-top:12px;font-size:13px;">Hint / Steps</h4>
+          <pre id="hintBox">No hint yet. Select a cube, scramble, then press 💡 Hint.</pre>
+
+          <div class="control-group-title">Face Move Controls</div>
+          <p class="small" id="controlsDescription" style="text-align:center;">
+            2×2 / 3×3 / 4×4 use standard moves (U, R, F, L, D, B). 4×4 also supports wide moves (Uw, Rw, etc.). Pyraminx uses U, L, R, B + tip turns.
+          </p>
+
+          <!-- Combined panel: normal + wide controls -->
+          <div id="controlsPanel">
+            <!-- Cube-style controls (2×2 / 3×3 / 4×4 basic face moves) -->
+            <div id="controlsCube">
+              <div class="control-row">
+                <button data-move="U">U</button>
+                <button data-move="U'">U'</button>
+                <button data-move="U2">U2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="R">R</button>
+                <button data-move="R'">R'</button>
+                <button data-move="R2">R2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="F">F</button>
+                <button data-move="F'">F'</button>
+                <button data-move="F2">F2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="L">L</button>
+                <button data-move="L'">L'</button>
+                <button data-move="L2">L2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="D">D</button>
+                <button data-move="D'">D'</button>
+                <button data-move="D2">D2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="B">B</button>
+                <button data-move="B'">B'</button>
+                <button data-move="B2">B2</button>
+              </div>
+            </div>
+
+            <!-- 4×4 wide-move controls -->
+            <div id="controls4x4Wide" style="display:none;">
+              <div class="control-group-title" style="margin-top:0;">4×4 Wide Turns</div>
+              <div class="control-row">
+                <button data-move="Uw">Uw</button>
+                <button data-move="Uw'">Uw'</button>
+                <button data-move="Uw2">Uw2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="Rw">Rw</button>
+                <button data-move="Rw'">Rw'</button>
+                <button data-move="Rw2">Rw2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="Fw">Fw</button>
+                <button data-move="Fw'">Fw'</button>
+                <button data-move="Fw2">Fw2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="Lw">Lw</button>
+                <button data-move="Lw'">Lw'</button>
+                <button data-move="Lw2">Lw2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="Dw">Dw</button>
+                <button data-move="Dw'">Dw'</button>
+                <button data-move="Dw2">Dw2</button>
+              </div>
+              <div class="control-row">
+                <button data-move="Bw">Bw</button>
+                <button data-move="Bw'">Bw'</button>
+                <button data-move="Bw2">Bw2</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pyraminx controls -->
+          <div id="controlsPyra" style="display:none;">
+            <div class="control-row">
+              <button data-move="U">U</button>
+              <button data-move="U'">U'</button>
+            </div>
+            <div class="control-row">
+              <button data-move="L">L</button>
+              <button data-move="L'">L'</button>
+            </div>
+            <div class="control-row">
+              <button data-move="R">R</button>
+              <button data-move="R'">R'</button>
+            </div>
+            <div class="control-row">
+              <button data-move="B">B</button>
+              <button data-move="B'">B'</button>
+            </div>
+            <div class="control-row">
+              <button data-move="u">u</button>
+              <button data-move="u'">u'</button>
+              <button data-move="l">l</button>
+              <button data-move="l'">l'</button>
+              <button data-move="r">r</button>
+              <button data-move="r'">r'</button>
+              <button data-move="b">b</button>
+              <button data-move="b'">b'</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side column (shop / summary) -->
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="app-card">
+          <h3>Buy Rubik's Cubes</h3>
+          <p class="small">
+            This block represents e-commerce integration: quick links where users can buy cubes directly.
+          </p>
+          <ul class="list">
+            <li><a href="https://www.amazon.in/s?k=2x2+rubik+cube" target="_blank" rel="noreferrer" style="color:#60a5fa;">2×2 Rubik’s Cube</a></li>
+            <li><a href="https://www.amazon.in/s?k=3x3+rubik+cube" target="_blank" rel="noreferrer" style="color:#60a5fa;">3×3 Rubik’s Cube</a></li>
+            <li><a href="https://www.amazon.in/s?k=4x4+rubik+cube" target="_blank" rel="noreferrer" style="color:#60a5fa;">4×4 Rubik’s Cube</a></li>
+            <li><a href="https://www.amazon.in/s?k=pyraminx" target="_blank" rel="noreferrer" style="color:#60a5fa;">Pyraminx (pyramid cube)</a></li>
+          </ul>
+        </div>
+
+        <div class="app-card">
+          <h3>Project Summary</h3>
+          <p class="small">
+            This single page demonstrates your final year project: a Rubik's Cube solver and interactive learning app.
+          </p>
+          <ul class="list">
+            <li>Smart 3×3 solver with 3D color-based input for real cubes.</li>
+            <li>Pyraminx Smart Solver from user-entered scrambles.</li>
+            <li>Multi-cube practice: 2×2, 3×3, 4×4, Pyraminx.</li>
+            <li>Live twisty-player cube with 360° mouse rotation, move buttons and animations.</li>
+            <li>Random scrambles, reset, hints, timing with best-score tracking, and 4×4 wide moves.</li>
+            <li>Purchase links to integrate basic e-commerce.</li>
+          </ul>
+          <p class="small">
+            Future scope: Smart Solver support for 2×2 / 4×4 via color input, camera-based scanning, AR overlays, user profiles, and leaderboards.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      © 2025 Rubik's Cube Studio — TYBSc.IT Final Year Project
+    </footer>
+  </div>
+
+  <!-- APP LOGIC -->
+  <script>
+    (function() {
+      const cubeLibAvailable = (typeof Cube !== "undefined");
+      if (cubeLibAvailable && Cube.initSolver) {
+  Cube.initSolver();
+}
+
+
+      /*********************************
+       * COMMON: move inversion (used in hints + Pyraminx Smart Solver)
+       *********************************/
+      function invertMoveGeneric(m) {
+        m = m.trim();
+        if (!m) return "";
+        if (m.endsWith("2")) return m;
+        if (m.endsWith("'")) return m.slice(0, -1);
+        return m + "'";
+      }
+      function invertSequenceGeneric(seq) {
+        const moves = seq.trim().split(/\s+/).filter(Boolean);
+        return moves.reverse().map(invertMoveGeneric).join(" ");
+      }
+
+      /*********************************
+       * SMART SOLVER (3D COLOR 3×3 + PYRAMINX FROM SCRAMBLE)
+       *********************************/
+      const FACE_ORDER = ["U","R","F","D","L","B"];
+      const FACE_COLORS = {
+        U: "#f9fafb", // white
+        R: "#ef4444", // red
+        F: "#22c55e", // green
+        D: "#facc15", // yellow
+        L: "#f97316", // orange
+        B: "#3b82f6"  // blue
+      };
+
+      const smartCubeTypeSelect = document.getElementById("smartCubeType");
+      const smartCubeWrap       = document.getElementById("smartCubeWrap");
+      const smartCube3D         = document.getElementById("smartCube3D");
+      const smartPyrContainer   = document.getElementById("smartPyrContainer");
+      const smartPyrTwisty      = document.getElementById("smartPyrTwisty");
+      const smartCubeHint       = document.getElementById("smartCubeHint");
+      const smartModeInfo       = document.getElementById("smartModeInfo");
+
+      const paletteRow          = document.getElementById("paletteRow");
+      const fillCentersBtn      = document.getElementById("fillCentersBtn");
+      const clearNetBtn         = document.getElementById("clearNetBtn");
+      const solveColorBtn       = document.getElementById("solveColorBtn");
+      const smartSolverMessage  = document.getElementById("smartSolverMessage");
+      const smartSolutionSteps  = document.getElementById("smartSolutionSteps");
+
+      const pyrSmartArea        = document.getElementById("pyrSmartArea");
+      const pyrScrambleInput    = document.getElementById("pyrScrambleInput");
+
+      let currentFaceSelection = "U";
+
+      function setSmartMessage(text) {
+        smartSolverMessage.textContent = text || "No solution yet.";
+      }
+      function setSmartSteps(text) {
+        smartSolutionSteps.textContent = text || "No steps.";
+      }
+
+      // Build palette
+      function buildPalette() {
+        paletteRow.innerHTML = "";
+        FACE_ORDER.forEach(face => {
+          const btn = document.createElement("button");
+          btn.className = "palette-btn";
+          btn.dataset.face = face;
+          if (face === currentFaceSelection) btn.classList.add("active");
+
+          const sw = document.createElement("span");
+          sw.className = "swatch";
+          sw.style.background = FACE_COLORS[face];
+
+          const label = document.createElement("span");
+          label.textContent = face;
+
+          btn.appendChild(sw);
+          btn.appendChild(label);
+          paletteRow.appendChild(btn);
+
+          btn.addEventListener("click", () => {
+            currentFaceSelection = face;
+            document.querySelectorAll(".palette-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+          });
+        });
+      }
+
+      // Build 3D cube faces + stickers based on mode (2×2, 3×3, 4×4)
+      function build3DCubeForMode(mode) {
+        smartCube3D.innerHTML = "";
+
+        if (mode === "pyraminx") {
+          smartCubeWrap.style.display = "none";
+          paletteRow.style.display    = "none";
+          smartCubeHint.style.display = "none";
+          if (smartPyrContainer) smartPyrContainer.style.display = "block";
+          return;
+        } else {
+          smartCubeWrap.style.display = "block";
+          paletteRow.style.display    = "flex";
+          smartCubeHint.style.display = "block";
+          if (smartPyrContainer) smartPyrContainer.style.display = "none";
+        }
+
+        let size = 3;
+        if (mode === "2x2x2") size = 2;
+        if (mode === "4x4x4") size = 4;
+
+        FACE_ORDER.forEach(face => {
+          const faceDiv = document.createElement("div");
+          faceDiv.className = "smart3d-face face-" + face;
+          faceDiv.dataset.face = face;
+          faceDiv.style.setProperty("--n", size);
+
+          const total = size * size;
+          for (let i=0;i<total;i++) {
+            const st = document.createElement("div");
+            st.className = "smart-sticker";
+            st.dataset.face = face;
+            st.dataset.index = String(i);
+            st.dataset.symbol = "";
+
+            // For 3×3: center sticker is fixed color & symbol
+            if (mode === "3x3x3" && size === 3 && i === 4) {
+              st.classList.add("center");
+              st.dataset.symbol = face;
+              st.style.background = FACE_COLORS[face];
+            }
+
+            st.addEventListener("click", () => {
+  const currentMode = smartCubeTypeSelect.value;
+
+  // allow painting for 2x2, 3x3, 4x4 only
+  if (!["2x2x2", "3x3x3", "4x4x4"].includes(currentMode)) {
+    setSmartMessage(
+      "Color painting is not available for this mode."
+    );
+    return;
+  }
+
+  // center is fixed only for 3x3
+  if (st.classList.contains("center")) {
+    return;
+  }
+
+  // max colors per cube size
+  let maxPerColor = 9;        // 3x3
+  if (currentMode === "2x2x2") maxPerColor = 4;
+  if (currentMode === "4x4x4") maxPerColor = 16;
+
+  const newSym = currentFaceSelection;
+  const oldSym = st.dataset.symbol || "";
+
+  if (oldSym === newSym) return;
+
+  let used = 0;
+  smartCube3D.querySelectorAll(".smart-sticker").forEach(s => {
+    if ((s.dataset.symbol || "") === newSym) {
+      used++;
+    }
+  });
+
+  if (used >= maxPerColor) {
+    setSmartMessage(
+      `Color ${newSym} can be used only ${maxPerColor} times for ${currentMode}.`
+    );
+    return;
+  }
+
+  st.dataset.symbol = newSym;
+  st.style.background = FACE_COLORS[newSym];
+});
+
+
+            faceDiv.appendChild(st);
+          }
+
+          smartCube3D.appendChild(faceDiv);
+        });
+      }
+
+      // Reset only non-center stickers for 3×3
+      function resetCenters() {
+        const mode = smartCubeTypeSelect.value;
+        if (mode !== "3x3x3") {
+          setSmartMessage("Center reset is only needed for 3×3 Smart Solver.");
+          return;
+        }
+        const stickers = smartCube3D.querySelectorAll(".smart-sticker");
+        stickers.forEach(st => {
+          const face = st.dataset.face;
+          const idx  = Number(st.dataset.index);
+          if (idx === 4) {
+            st.dataset.symbol = face;
+            st.style.background = FACE_COLORS[face];
+          } else {
+            st.dataset.symbol = "";
+            st.style.background = "#020617";
+          }
+        });
+      }
+
+      // Clear all stickers for 3×3
+      function clearAllNet() {
+        const mode = smartCubeTypeSelect.value;
+        if (mode !== "3x3x3") {
+          setSmartMessage("Clear-all is only needed for 3×3 Smart Solver input.");
+          return;
+        }
+        const stickers = smartCube3D.querySelectorAll(".smart-sticker");
+        stickers.forEach(st => {
+          const face = st.dataset.face;
+          const idx  = Number(st.dataset.index);
+          if (idx === 4) {
+            st.dataset.symbol = face;
+            st.style.background = FACE_COLORS[face];
+          } else {
+            st.dataset.symbol = "";
+            st.style.background = "#020617";
+          }
+        });
+      }
+
+      // Build 3×3 cube state string
+      function buildCubeStateString3x3() {
+  const parts = [];
+
+  for (const face of FACE_ORDER) {
+    const tiles = Array.from(
+      smartCube3D.querySelectorAll(`.smart-sticker[data-face="${face}"]`)
+    ).sort((a, b) => Number(a.dataset.index) - Number(b.dataset.index));
+
+    tiles.forEach(t => {
+      const sym = (t.dataset.symbol || "").toUpperCase();
+      parts.push(sym || "?");
+    });
+  }
+
+  return parts.join("");
+}
+
+
+      function validateState3x3(stateStr) {
+        const s = stateStr;
+        if (s.length !== 54) {
+          return "Internal error: state string must be 54 characters.";
+        }
+        if (s.includes("?")) {
+          return "Please color all non-center stickers before solving. Some stickers are still blank.";
+        }
+        const counts = {U:0,R:0,F:0,D:0,L:0,B:0};
+        for (const ch of s) {
+          if (!counts.hasOwnProperty(ch)) {
+            return "Invalid color mapping. Only faces U, R, F, D, L, B are allowed.";
+          }
+          counts[ch]++;
+        }
+        for (const face of FACE_ORDER) {
+          if (counts[face] !== 9) {
+            return `Each face letter (${face}) must appear exactly 9 times. Currently: ${counts[face]}.`;
+          }
+        }
+        return null;
+      }
+
+      fillCentersBtn.addEventListener("click", () => {
+        resetCenters();
+        setSmartSteps("Steps will appear after solving.");
+      });
+
+      clearNetBtn.addEventListener("click", () => {
+        clearAllNet();
+        setSmartSteps("Steps will appear after solving.");
+      });
+
+      solveColorBtn.addEventListener("click", () => {
+        const mode = smartCubeTypeSelect.value;
+
+        // PYRAMINX SMART SOLVER: from scramble
+        if (mode === "pyraminx") {
+          const scr = (pyrScrambleInput.value || "").trim();
+          if (!scr) {
+            setSmartMessage("Please enter a Pyraminx scramble (the moves you applied from solved state).");
+            setSmartSteps("No steps yet. Example scramble: U L' R U' r' U ...");
+            return;
+          }
+          // very light validation: only allow letters U/L/R/B/u/l/r/b with optional ' or 2
+          const tokens = scr.split(/\s+/).filter(Boolean);
+          const validRe = /^[ULRBulrb][2']?$/;
+          for (const t of tokens) {
+            if (!validRe.test(t)) {
+              setSmartMessage("Invalid move in Pyraminx scramble: \"" + t + "\". Use only U,L,R,B and u,l,r,b with optional ' or 2.");
+              setSmartSteps("Fix the scramble and try again.");
+              return;
+            }
+          }
+
+          const reverseSeq = invertSequenceGeneric(scr);
+          const revTokens  = reverseSeq.split(/\s+/).filter(Boolean);
+          const stepsText  = revTokens.map((m,i)=> (i+1)+". "+m).join("\n");
+
+          if (smartPyrTwisty) {
+            smartPyrTwisty.alg = scr; // show scrambled pyraminx
+          }
+
+          setSmartMessage("Pyraminx solution generated. Apply these moves on your scrambled real Pyraminx to solve it.");
+          setSmartSteps(stepsText);
+          return;
+        }
+
+        // Only 3×3 solving for color-based
+        if (mode !== "3x3x3") {
+          setSmartMessage("Smart Solver color-based solving is implemented only for 3×3. For 2×2 and 4×4, use Gameplay & Practice.");
+          setSmartSteps("No steps here for " + mode + ". Use Gameplay & Practice for interaction.");
+          return;
+        }
+        if (!cubeLibAvailable) {
+          setSmartMessage("cube.js library did not load. Check internet connection and refresh.");
+          setSmartSteps("Cannot solve because solver library is missing.");
+          return;
+        }
+
+        const state = buildCubeStateString3x3();
+const err = validateState3x3(state);
+if (err) {
+  setSmartMessage(err);
+  setSmartSteps("No steps available because the cube state is invalid.");
+  return;
+}
+
+try {
+  const cube = Cube.fromString(state);
+  const alg  = cube.solve();
+  const moves = alg.split(/\s+/).filter(Boolean);
+
+
+          // 🔥 FORCE real-time animation
+          const twistyPlayer = document.getElementById("twisty");
+          if (twistyPlayer) {
+          twistyPlayer.setAttribute("puzzle", "3x3x3");
+
+          // reset first
+          twistyPlayer.alg = "";
+
+          // allow browser to repaint, then play solution
+          requestAnimationFrame(() => {
+    twistyPlayer.alg = alg;
+  });
+}
+
+          
+          if (!moves.length) {
+            setSmartMessage("Cube is already solved. No moves needed.");
+            setSmartSteps("Your entered cube was in solved state.");
+            return;
+          }
+          const stepsText = moves.map((m,i)=> (i+1)+". "+m).join("\n");
+          setSmartMessage("Solved successfully using cube.js. Apply these moves on your real 3×3 cube.");
+          setSmartSteps(stepsText);
+        } catch (e) {
+          console.error(e);
+          setSmartMessage("Error while solving. The entered color pattern might be impossible or mis-entered.");
+          setSmartSteps("No valid solution could be found. Double-check that each face color is placed correctly.");
+        }
+      });
+
+      // Change Smart Solver mode (3×3, 2×2, 4×4, pyraminx)
+      smartCubeTypeSelect.addEventListener("change", () => {
+        const mode = smartCubeTypeSelect.value;
+
+        if (mode === "3x3x3") {
+          solveColorBtn.disabled = false;
+          solveColorBtn.textContent = "Solve (3×3)";
+          pyrSmartArea.style.display = "none";
+          build3DCubeForMode("3x3x3");
+          resetCenters();
+          smartModeInfo.textContent =
+            "Smart Solver painting and solving is enabled for 3×3. Each color can be used 9 times total (1 center + 8 stickers).";
+          setSmartMessage("3×3 Smart Solver ready. Color all stickers and click “Solve (3×3)”.");
+          setSmartSteps("Steps will appear here after solving.");
+        } else if (mode === "2x2x2") {
+          solveColorBtn.disabled = true;
+          solveColorBtn.textContent = "Solve (3×3)";
+          pyrSmartArea.style.display = "none";
+          build3DCubeForMode("2x2x2");
+          smartModeInfo.textContent =
+            "2×2 cube model is shown here for visualization. Use Gameplay & Practice mode for interactive solving and hints.";
+          setSmartMessage("2×2 visual model only in Smart Solver. Use Gameplay & Practice for real-time interaction.");
+          setSmartSteps("No Smart Solver steps for 2×2 in this version.");
+        } else if (mode === "4x4x4") {
+          solveColorBtn.disabled = true;
+          solveColorBtn.textContent = "Solve (3×3)";
+          pyrSmartArea.style.display = "none";
+          build3DCubeForMode("4x4x4");
+          smartModeInfo.textContent =
+            "4×4 cube model is shown here for visualization. Use Gameplay & Practice mode for 4×4 scrambles and solving.";
+          setSmartMessage("4×4 visual model only in Smart Solver. Use Gameplay & Practice for solving and wide moves.");
+          setSmartSteps("No Smart Solver steps for 4×4 in this version.");
+        } else if (mode === "pyraminx") {
+          solveColorBtn.disabled = false;
+          solveColorBtn.textContent = "Solve Pyraminx from Scramble";
+          build3DCubeForMode("pyraminx");
+          pyrSmartArea.style.display = "block";
+          smartModeInfo.textContent =
+            "Pyraminx Smart Solver uses scrambles: enter the moves from solved to scrambled, and we show you the reverse solution.";
+          if (smartPyrTwisty) {
+            smartPyrTwisty.alg = "";
+          }
+          setSmartMessage("Pyraminx Smart Solver ready. Enter a scramble and click “Solve Pyraminx from Scramble”.");
+          setSmartSteps("Steps will appear here as reverse moves to solve your real pyramid.");
+        }
+      });
+
+      // 3D cube rotation with mouse drag
+      let isDragging = false;
+      let lastX = 0, lastY = 0;
+      let rotX = -25, rotY = -30;
+
+      function applyCubeRotation(){
+        smartCube3D.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      }
+      applyCubeRotation();
+
+      smartCubeWrap.addEventListener("mousedown", (e)=>{
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        smartCubeWrap.style.cursor = "grabbing";
+      });
+      window.addEventListener("mouseup", ()=>{
+        isDragging = false;
+        smartCubeWrap.style.cursor = "grab";
+      });
+      window.addEventListener("mousemove", (e)=>{
+        if(!isDragging) return;
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        rotY += dx * 0.4;
+        rotX -= dy * 0.4;
+        rotX = Math.max(-80, Math.min(80, rotX));
+        applyCubeRotation();
+      });
+
+      // Touch support
+      smartCubeWrap.addEventListener("touchstart",(e)=>{
+        if(e.touches.length!==1) return;
+        const t = e.touches[0];
+        isDragging = true;
+        lastX = t.clientX;
+        lastY = t.clientY;
+      },{passive:true});
+      window.addEventListener("touchend",()=>{
+        isDragging=false;
+      });
+      window.addEventListener("touchmove",(e)=>{
+        if(!isDragging || e.touches.length!==1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - lastX;
+        const dy = t.clientY - lastY;
+        lastX = t.clientX;
+        lastY = t.clientY;
+        rotY += dx * 0.4;
+        rotX -= dy * 0.4;
+        rotX = Math.max(-80, Math.min(80, rotX));
+        applyCubeRotation();
+      },{passive:true});
+
+      // Init Smart Solver: 3×3 mode
+      buildPalette();
+      build3DCubeForMode("3x3x3");
+      resetCenters();
+      setSmartMessage("No solution yet. Color all stickers for 3×3, or select Pyraminx and enter a scramble, then click Solve.");
+      setSmartSteps("Steps will appear after solving.");
+
+      /*********************************
+       * GAMEPLAY & PRACTICE
+       *********************************/
+      const twisty      = document.getElementById("twisty");
+      const modeSelect  = document.getElementById("modeSelect");
+      const scrambleBtn = document.getElementById("scrambleBtn");
+      const resetBtn    = document.getElementById("resetBtn");
+      const stopTimerBtn= document.getElementById("stopTimerBtn");
+      const hintBtn     = document.getElementById("hintBtn");
+      const hintBox     = document.getElementById("hintBox");
+      const controlsCube = document.getElementById("controlsCube");
+      const controls4x4Wide = document.getElementById("controls4x4Wide");
+      const controlsPyra = document.getElementById("controlsPyra");
+      const controlsDescription = document.getElementById("controlsDescription");
+      const statusPill  = document.getElementById("statusPill");
+      const orientationHelper = document.getElementById("orientationHelper");
+
+      const timerCurrentEl = document.getElementById("timerCurrent");
+      const timerBestEl    = document.getElementById("timerBest");
+
+      const MOVES_3x3 = [
+        "R","R'","R2",
+        "L","L'","L2",
+        "U","U'","U2",
+        "D","D'","D2",
+        "F","F'","F2",
+        "B","B'","B2"
+      ];
+      const MOVES_PYRA = [
+        "U","U'",
+        "L","L'",
+        "R","R'",
+        "B","B'",
+        "u","u'",
+        "l","l'",
+        "r","r'",
+        "b","b'"
+      ];
+
+      let currentAlgString = "";
+      let lastScramble = {
+        "3x3x3": "",
+        "2x2x2": "",
+        "4x4x4": "",
+        "pyraminx": ""
+      };
+
+      let timerInterval = null;
+      let timerStartTime = null;
+      let elapsedMs = 0;
+      const bestTimes = {
+        "3x3x3": null,
+        "2x2x2": null,
+        "4x4x4": null,
+        "pyraminx": null
+      };
+
+      function formatTime(ms){
+        const totalSeconds = ms / 1000;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const secStr = seconds.toFixed(1).padStart(4, "0");
+        if (minutes > 0){
+          return minutes.toString().padStart(2,"0") + ":" + secStr;
+        }
+        return "00:" + secStr;
+      }
+
+      function updateTimerDisplay(){
+        timerCurrentEl.textContent = formatTime(elapsedMs);
+        const mode = modeSelect.value;
+        const best = bestTimes[mode];
+        timerBestEl.textContent = best != null ? formatTime(best) : "--";
+      }
+
+      function resetTimerDisplay(){
+        elapsedMs = 0;
+        updateTimerDisplay();
+      }
+
+      function startTimer(){
+        if (timerInterval){
+          clearInterval(timerInterval);
+        }
+        elapsedMs = 0;
+        timerStartTime = Date.now();
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+          elapsedMs = Date.now() - timerStartTime;
+          updateTimerDisplay();
+        }, 100);
+      }
+
+      function stopTimer(markSolved){
+        if (timerInterval){
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        if (markSolved && elapsedMs > 0){
+          const mode = modeSelect.value;
+          const best = bestTimes[mode];
+          if (best == null || elapsedMs < best){
+            bestTimes[mode] = elapsedMs;
+          }
+          setStatusSolved(true);
+          hintBox.textContent =
+            "Great! You stopped the timer at " + formatTime(elapsedMs) +
+            " for " + mode + ".\nBest time is updated if this was your fastest solve.";
+        }
+        updateTimerDisplay();
+      }
+
+      function setStatusSolved(isSolved) {
+        if (isSolved) {
+          statusPill.classList.add("solved");
+          statusPill.classList.remove("unsolved");
+          statusPill.innerHTML = '<span class="dot"></span> Solved';
+        } else {
+          statusPill.classList.add("unsolved");
+          statusPill.classList.remove("solved");
+          statusPill.innerHTML = '<span class="dot"></span> Not solved';
+        }
+      }
+
+      function randomScramble(length, movesSet) {
+        const seq = [];
+        let lastFace = null;
+        for (let i=0;i<length;i++){
+          let move, face;
+          do {
+            move = movesSet[Math.floor(Math.random()*movesSet.length)];
+            face = move[0];
+          } while (face === lastFace);
+          lastFace = face;
+          seq.push(move);
+        }
+        return seq.join(" ");
+      }
+
+      function updateControlsForMode(mode) {
+        if (mode === "pyraminx") {
+          controlsCube.style.display = "none";
+          controls4x4Wide.style.display = "none";
+          controlsPyra.style.display = "block";
+          controlsDescription.textContent =
+            "Pyraminx mode: use U, L, R, B for faces and u, l, r, b for tip turns. Hint uses reversed scramble.";
+          orientationHelper.textContent =
+            "Pyraminx orientation: hold the puzzle with one tip pointing up. U = top face, L = left face, R = right face, B = back face. Tip moves u, l, r, b rotate only the small corner tips.";
+        } else if (mode === "4x4x4") {
+          controlsCube.style.display = "block";
+          controls4x4Wide.style.display = "block";
+          controlsPyra.style.display = "none";
+          controlsDescription.textContent =
+            "4×4 mode: use face moves (U,R,F,L,D,B) plus wide turns (Uw,Rw,Fw,Lw,Dw,Bw) that rotate the outer two layers together.";
+          orientationHelper.textContent =
+            "Cube orientation: hold the puzzle so U = top face, F = front face, R = right, L = left, D = bottom, B = back. Wide moves (Uw,Rw,...) turn the outer two layers.";
+        } else {
+          controlsCube.style.display = "block";
+          controls4x4Wide.style.display = "none";
+          controlsPyra.style.display = "none";
+          controlsDescription.textContent =
+            "2×2 / 3×3: standard cube face moves (U, R, F, L, D, B) and their variants.";
+          orientationHelper.textContent =
+            "Cube orientation: hold the puzzle so U = top face, F = front face, R = right, L = left, D = bottom, B = back. All moves (U,R,F,L,D,B) are defined with respect to this.";
+        }
+        updateTimerDisplay();
+      }
+
+      function triggerCubeAnimation(type){
+        twisty.classList.remove("anim-move","anim-scramble");
+        void twisty.offsetWidth;
+        if(type === "scramble"){
+          twisty.classList.add("anim-scramble");
+        } else {
+          twisty.classList.add("anim-move");
+        }
+      }
+
+      modeSelect.addEventListener("change", () => {
+        const mode = modeSelect.value;
+        twisty.setAttribute("puzzle", mode);
+        currentAlgString = "";
+        twisty.alg = "";
+        setStatusSolved(true);
+        stopTimer(false);
+        resetTimerDisplay();
+
+        updateControlsForMode(mode);
+
+        hintBox.textContent =
+          "Mode: " + mode +
+          ".\nScramble, then use face buttons. 💡 Hint will show moves based on the reversed scramble.";
+      });
+
+      scrambleBtn.addEventListener("click", () => {
+        const mode = modeSelect.value;
+        let len = 20;
+        let movesSet = MOVES_3x3;
+
+        if (mode === "2x2x2") { len = 9;  movesSet = MOVES_3x3; }
+        if (mode === "4x4x4") { len = 40; movesSet = MOVES_3x3; }
+        if (mode === "pyraminx") { len = 12; movesSet = MOVES_PYRA; }
+
+        const scr = randomScramble(len, movesSet);
+        lastScramble[mode] = scr;
+        currentAlgString = scr;
+        twisty.alg = currentAlgString;
+        setStatusSolved(false);
+        triggerCubeAnimation("scramble");
+
+        startTimer();
+
+        hintBox.textContent =
+          "Scramble applied to " + mode +
+          ".\nRotate the puzzle with your mouse and use the face buttons.\n💡 Hint will use the reversed scramble.\nPress “Stop Timer (Solved)” when you finish.";
+      });
+
+      resetBtn.addEventListener("click", () => {
+        const mode = modeSelect.value;
+        currentAlgString = "";
+        twisty.alg = "";
+        setStatusSolved(true);
+        stopTimer(false);
+        resetTimerDisplay();
+
+        hintBox.textContent = "Cube reset to solved state for " + mode + ".";
+      });
+
+      stopTimerBtn.addEventListener("click", () => {
+        stopTimer(true);
+      });
+
+      function applyButtonMove(move) {
+        currentAlgString = (currentAlgString + " " + move).trim();
+        twisty.alg = currentAlgString;
+        setStatusSolved(false);
+        triggerCubeAnimation("move");
+      }
+
+      document.querySelectorAll("[data-move]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const move = btn.getAttribute("data-move");
+          if (!move) return;
+          applyButtonMove(move);
+        });
+      });
+
+      hintBtn.addEventListener("click", () => {
+        const mode = modeSelect.value;
+        const scr = (lastScramble[mode] || "").trim();
+        if (!scr) {
+          hintBox.textContent =
+            "No scramble stored for " + mode +
+            ". Please press “Generate Random Scramble” first.";
+          return;
+        }
+
+        const reversed = invertSequenceGeneric(scr);
+        const moves = reversed.split(/\s+/).filter(Boolean);
+        const nextFew = moves.slice(0,5);
+
+        hintBox.textContent =
+          "Hint for " + mode + " (based on reversed scramble):\n" +
+          nextFew.map((m,i)=>(i+1)+") "+m).join("\n") +
+          "\n\nNote: These moves assume you are starting from the scrambled position generated by the app.\n" +
+          "Full reverse sequence, if you want to solve directly:\n" +
+          reversed;
+      });
+
+      updateControlsForMode("3x3x3");
+      setStatusSolved(true);
+      resetTimerDisplay();
+      hintBox.textContent =
+        "No hint yet.\nSelect a cube type, click “Generate Random Scramble”,\nuse face buttons, then press 💡 Hint.\nUse “Stop Timer (Solved)” to record your best time.";
+    })();
+  </script>
+</body>
+</html>
